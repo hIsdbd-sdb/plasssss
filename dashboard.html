@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+        <div class="bg-white p-6 rounded-xl shadow-lg">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 sm:text-3xl">Your VPS Instances</h2>
+                {% if current_user.is_admin %}
+                <a href="{{ url_for('create_vps') }}" 
+                   class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-150 ease-in-out">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Create New VPS
+                </a>
+                {% endif %}
+            </div>
+            
+            {% if vps_list %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for vps in vps_list %}
+                <div class="border border-gray-200 rounded-xl p-5 shadow-sm bg-white hover:shadow-md transition-shadow duration-200">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">VPS ID: {{ vps.vps_id }}</h3>
+                    <div class="space-y-1 text-sm text-gray-600">
+                        <p><strong>OS:</strong> {{ vps.os_image }}</p>
+                        <p><strong>Memory:</strong> {{ vps.memory }} GB</p>
+                        <p><strong>CPU:</strong> {{ vps.cpu }} cores</p>
+                        <p><strong>Disk:</strong> {{ vps.disk }} GB</p>
+                        <p><strong>Status:</strong> 
+                            <span class="inline-block px-2 py-1 rounded-full text-xs font-medium 
+                                {% if vps.status == 'running' %}bg-green-100 text-green-800
+                                {% elif vps.status == 'stopped' %}bg-red-100 text-red-800
+                                {% elif vps.status == 'suspended' %}bg-yellow-100 text-yellow-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ vps.status | capitalize }}
+                            </span>
+                        </p>
+                        <p><strong>Expires:</strong> {{ vps.expires_at }}</p>
+                    </div>
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <a href="{{ url_for('vps_details', vps_id=vps.vps_id) }}" 
+                           class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-150">
+                            Details
+                        </a>
+                        {% if vps.status == 'running' %}
+                        <a href="{{ url_for('stop_vps', vps_id=vps.vps_id) }}" 
+                           class="inline-flex items-center px-3 py-1.5 bg-yellow-600 text-white text-sm rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 transition duration-150">
+                            Stop
+                        </a>
+                        {% elif vps.status == 'stopped' or vps.status == 'suspended' %}
+                        <a href="{{ url_for('start_vps', vps_id=vps.vps_id) }}" 
+                           class="inline-flex items-center px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition duration-150">
+                            Start
+                        </a>
+                        {% endif %}
+                        <a href="{{ url_for('restart_vps', vps_id=vps.vps_id) }}" 
+                           class="inline-flex items-center px-3 py-1.5 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition duration-150">
+                            Restart
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <p class="text-gray-600 text-lg">No VPS instances found. 
+                    {% if current_user.is_admin %}
+                    Create one to get started!
+                    {% else %}
+                    Contact an admin to create a VPS.
+                    {% endif %}
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

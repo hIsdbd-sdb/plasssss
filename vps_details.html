@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}VPS Details - {{ vps.vps_id }}{% endblock %}
+{% block content %}
+<div class="bg-white p-6 rounded-lg shadow-md">
+    <h2 class="text-2xl font-bold mb-4">VPS Details: {{ vps.vps_id }}</h2>
+    <p><strong>OS:</strong> {{ vps.os_image }}</p>
+    <p><strong>Memory:</strong> {{ vps.memory }} GB</p>
+    <p><strong>CPU:</strong> {{ vps.cpu }} cores</p>
+    <p><strong>Disk:</strong> {{ vps.disk }} GB</p>
+    <p><strong>Status:</strong> {{ container_status | capitalize }}</p>
+    <p><strong>SSH Access:</strong> ssh root@{{ server_ip }} -p {{ vps.port }}</p>
+    <p><strong>Root Password:</strong> <span id="password">{{ vps.password }}</span> <button onclick="copyPassword()" class="text-blue-600 hover:underline">Copy</button></p>
+    {% if vps.tmate_session %}
+        <p><strong>tmate Session:</strong> {{ vps.tmate_session }}</p>
+    {% endif %}
+    <p><strong>Created:</strong> {{ vps.created_at }}</p>
+    <p><strong>Expires:</strong> {{ vps.expires_at }}</p>
+    <div class="mt-4 flex space-x-2">
+        {% if container_status == 'running' %}
+            <a href="{{ url_for('stop_vps', vps_id=vps.vps_id) }}" class="bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700">Stop</a>
+        {% elif container_status == 'exited' or container_status == 'stopped' %}
+            <a href="{{ url_for('start_vps', vps_id=vps.vps_id) }}" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700">Start</a>
+        {% endif %}
+        <a href="{{ url_for('restart_vps', vps_id=vps.vps_id) }}" class="bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700">Restart</a>
+        <a href="{{ url_for('vps_console', vps_id=vps.vps_id) }}" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Console</a>
+        <button onclick="changePassword()" class="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700">Change Password</button>
+        <a href="{{ url_for('delete_vps', vps_id=vps.vps_id) }}" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">Delete</a>
+        {% if is_admin %}
+            <a href="{{ url_for('edit_vps', vps_id=vps.vps_id) }}" class="bg-teal-600 text-white px-3 py-1 rounded hover:bg-teal-700">Edit</a>
+            <a href="{{ url_for('renew_vps', vps_id=vps.vps_id) }}" class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700">Renew</a>
+            {% if vps.status == 'suspended' %}
+                <a href="{{ url_for('unsuspend_vps', vps_id=vps.vps_id) }}" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700">Unsuspend</a>
+            {% else %}
+                <a href="{{ url_for('suspend_vps', vps_id=vps.vps_id) }}" class="bg-orange-600 text-white px-3 py-1 rounded hover:bg-orange-700">Suspend</a>
+            {% endif %}
+            <a href="{{ url_for('backup_vps', vps_id=vps.vps_id) }}" class="bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700">Backup</a>
+        {% endif %}
+    </div>
+    <div class="mt-4">
+        <h3 class="text-lg font-semibold">VPS Statistics</h3>
+        <div id="stats" class="text-gray-600"></div>
+    </div>
+    <div class="mt-4">
+        <h3 class="text-lg font-semibold">Container Logs</h3>
+        <pre id="logs" class="bg-gray-100 p-4 rounded overflow-auto max-h-96"></pre>
+    </div>
+</div>
+<script>
+    function copyPassword() {
+        navigator.clipboard.writeText(document.getElementById('password').textContent);
+        alert('Password copied to clipboard!');
+    }
+
+    function changePassword() {
+        fetch('{{ url_for("change_vps_password", vps_id=vps.vps_id) }}', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    document.getElementById('password').textContent = data.password;
+                    alert(data.message);
+                }
+            })
+            .catch(error => alert('Error: ' + error));
+    }
+
+    function fetchStats() {
+        fetch('{{ url_for("vps_stats", vps_id=vps.vps_id) }}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('stats').innerHTML = 'Error: ' + data.error;
+                } else {
+                    document.getElementById('stats').innerHTML = `
+                        <p><strong>CPU Usage:</strong> ${data.cpu.percent}%</p>
+                        <p><strong>Memory Usage:</strong> ${data.memory.used_mb} MB / ${data.memory.limit_mb} MB (${data.memory.percent}%)</p>
+                        <p><strong>Disk I/O:</strong> Read: ${data.disk.read_mb} MB, Write: ${data.disk.write_mb} MB</p>
+                        <p><strong>Configured:</strong> Memory: ${data.configured.memory}, CPU: ${data.configured.cpu}, Disk: ${data.configured.disk}</p>
+                        <p><strong>Uptime:</strong> ${data.uptime}</p>
+                    `;
+                }
+            });
+    }
+
+    function fetchLogs() {
+        fetch('{{ url_for("vps_logs", vps_id=vps.vps_id) }}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('logs').textContent = 'Error: ' + data.error;
+                } else {
+                    document.getElementById('logs').textContent = data.logs;
+                }
+            });
+    }
+
+    fetchStats();
+    fetchLogs();
+    setInterval(fetchStats, 10000);
+</script>
+{% endblock %}
